@@ -1,10 +1,14 @@
-#include <Arduino.h>
-#include <Adafruit_BMP280.h>
 #include <BMP280.h>
-#include "GyverFilters.h"
 
 Adafruit_BMP280 bmp;
-float bmpData;
+
+float bmpData, bmpDataPrev;
+float mini, maxi;
+extern uint16_t bmpNormalPressure;
+
+int CalibrationINC = 0;
+
+extern MillisTimer Timer_Calibration;
 
 GKalman BMP280_Filter(30, 30, 0.3);
 
@@ -15,6 +19,30 @@ float BMP280_Filtered(){
 }
 
 
+void bmpCalibrationRange(){  
+    bmpData = bmp.readPressure() / 10.0F;
+    bmpData = BMP280_Filter.filtered(bmpData);
+    //Serial.println(bmpData);
+    // if (bmpData > maxi){
+    //     maxi = bmpData;
+    //     Serial.println(bmpData);
+    // } 
+    
+}
+
+void CalibrationStillPressure(){
+    while (CalibrationINC != 150){
+        Timer_Calibration.Call(10, []() {
+            bmpData = BMP280_Filtered();
+            if (abs(bmpDataPrev - bmpData) <= 3){
+                CalibrationINC++;
+            }
+            bmpDataPrev = bmpData;
+        });
+    } 
+    bmpNormalPressure = round(bmpData);   
+    //Serial.println(NormalPressure);
+}
 
 void Init_BMP280(){
     unsigned status;
@@ -28,7 +56,7 @@ void Init_BMP280(){
         Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
         Serial.print("        ID of 0x60 represents a BME 280.\n");
         Serial.print("        ID of 0x61 represents a BME 680.\n");
-        while (1) delay(10);
+        //while (1) delay(10);
     }
 
     bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
